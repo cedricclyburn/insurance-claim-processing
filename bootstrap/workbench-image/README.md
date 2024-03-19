@@ -11,3 +11,7 @@ The `requirements.txt` file used to build the container image is generated in th
 - Create the requirement.txt with `pipenv requirements > requirements.txt`
 - Edit `requirements.txt` and remove the package `opencv-python` (which has been "injected" as a dependency), it was not in the Pipfile, but keep `opencv-python-headless`
 - `requirements.txt` content will be installed when the container is built with the option `no-dependencies` to avoid unwanted packages to come back... This option is really needed, otherwise pip will install the standard opencv version again as a dependency...
+
+## Build the image
+
+`podman build -t rhoai-lab-insurance-claim-workbench:x.y .`
