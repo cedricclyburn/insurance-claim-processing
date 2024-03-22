@@ -18,6 +18,7 @@ export interface IAppRoute {
   path: string;
   title: string;
   routes?: undefined;
+  disabled?: boolean;
 }
 
 export interface IAppRouteGroup {
@@ -35,12 +36,6 @@ const routes: AppRouteConfig[] = [
     path: '/',
     title: 'Original App',
   },
-/*   {
-    component: NewApp,
-    exact: true,
-    path: '/newapp',
-    title: 'NewApp',
-  }, */
   {
     component: ClaimsList,
     exact: true,
@@ -53,6 +48,12 @@ const routes: AppRouteConfig[] = [
     exact: true,
     path: '/ClaimDetail/:claim_id',
     title: 'Claim Detail',
+  },
+  {
+    component: NewApp,
+    label: 'Test',
+    path: '#',
+    title: 'New App'
   },
 ];
 
