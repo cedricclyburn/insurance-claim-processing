@@ -56,7 +56,7 @@ s3 = boto3.client(
     endpoint_url=config["S3_ENDPOINT_URL"],
     aws_access_key_id=config["AWS_ACCESS_KEY_ID"],
     aws_secret_access_key=config["AWS_SECRET_ACCESS_KEY"],
-    use_ssl=config["INFERENCE_SERVER_URL"].startswith("https"),)
+    use_ssl=config["S3_ENDPOINT_URL"].startswith("https"),)
 
 # Status API
 @app.get("/health")
