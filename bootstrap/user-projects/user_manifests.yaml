@@ -1,0 +1,186 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  annotations:
+    openshift.io/description: ''
+    openshift.io/display-name: user1-auto
+  labels:
+    kubernetes.io/metadata.name: user1-auto
+    modelmesh-enabled: 'true'
+    opendatahub.io/dashboard: 'true'
+  name: user1-auto
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admin
+  namespace: user1-auto
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: user1-auto
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    opendatahub.io/connection-type: s3
+    openshift.io/display-name: object-detection
+  labels:
+    opendatahub.io/dashboard: 'true'
+    opendatahub.io/managed: 'true'
+  name: aws-connection-object-detection
+  namespace: user1-auto
+stringData:
+  AWS_ACCESS_KEY_ID: minio
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_S3_BUCKET: user1-auto
+  AWS_S3_ENDPOINT: http://minio-service.minio.svc:9000
+  AWS_SECRET_ACCESS_KEY: minio123
+  type: Opaque
+---
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1alpha1
+kind: DataSciencePipelinesApplication
+metadata:
+  finalizers:
+  - datasciencepipelinesapplications.opendatahub.io/finalizer
+  name: pipelines-definition
+  namespace: user1-auto
+spec:
+  apiServer:
+    applyTektonCustomResource: true
+    archiveLogs: false
+    autoUpdatePipelineDefaultVersion: true
+    collectMetrics: true
+    dbConfigConMaxLifetimeSec: 120
+    deploy: true
+    enableOauth: true
+    enableSamplePipeline: false
+    injectDefaultScript: true
+    stripEOF: true
+    terminateStatus: Cancelled
+    trackArtifacts: true
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      pvcSize: 10Gi
+      username: mlpipeline
+  objectStorage:
+    externalStorage:
+      bucket: object-detection-pipelines
+      host: minio-service.minio.svc:9000
+      port: ''
+      s3CredentialsSecret:
+        accessKey: AWS_ACCESS_KEY_ID
+        secretKey: AWS_SECRET_ACCESS_KEY
+        secretName: aws-connection-pipelines
+      scheme: http
+      secure: false
+  persistenceAgent:
+    deploy: true
+    numWorkers: 2
+  scheduledWorkflow:
+    cronScheduleTimezone: UTC
+    deploy: true
+---
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  annotations:
+    openshift.io/description: ''
+    openshift.io/display-name: user2-auto
+  labels:
+    kubernetes.io/metadata.name: user2-auto
+    modelmesh-enabled: 'true'
+    opendatahub.io/dashboard: 'true'
+  name: user2-auto
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admin
+  namespace: user2-auto
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: user2-auto
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    opendatahub.io/connection-type: s3
+    openshift.io/display-name: object-detection
+  labels:
+    opendatahub.io/dashboard: 'true'
+    opendatahub.io/managed: 'true'
+  name: aws-connection-object-detection
+  namespace: user2-auto
+stringData:
+  AWS_ACCESS_KEY_ID: minio
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_S3_BUCKET: user2-auto
+  AWS_S3_ENDPOINT: http://minio-service.minio.svc:9000
+  AWS_SECRET_ACCESS_KEY: minio123
+  type: Opaque
+---
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1alpha1
+kind: DataSciencePipelinesApplication
+metadata:
+  finalizers:
+  - datasciencepipelinesapplications.opendatahub.io/finalizer
+  name: pipelines-definition
+  namespace: user2-auto
+spec:
+  apiServer:
+    applyTektonCustomResource: true
+    archiveLogs: false
+    autoUpdatePipelineDefaultVersion: true
+    collectMetrics: true
+    dbConfigConMaxLifetimeSec: 120
+    deploy: true
+    enableOauth: true
+    enableSamplePipeline: false
+    injectDefaultScript: true
+    stripEOF: true
+    terminateStatus: Cancelled
+    trackArtifacts: true
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      pvcSize: 10Gi
+      username: mlpipeline
+  objectStorage:
+    externalStorage:
+      bucket: object-detection-pipelines
+      host: minio-service.minio.svc:9000
+      port: ''
+      s3CredentialsSecret:
+        accessKey: AWS_ACCESS_KEY_ID
+        secretKey: AWS_SECRET_ACCESS_KEY
+        secretName: aws-connection-pipelines
+      scheme: http
+      secure: false
+  persistenceAgent:
+    deploy: true
+    numWorkers: 2
+  scheduledWorkflow:
+    cronScheduleTimezone: UTC
+    deploy: true
+---

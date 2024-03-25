@@ -39,35 +39,37 @@ def _get_overall_resources(user_count):
     return overall_resources
 
 
-def _get_user_resources(user_id):
+def _get_user_resources(user):
     user_resources = [
         # Set up project
-        _get_project_resource(user_id),
-        _get_role_binding_resource(user_id),
+        _get_project_resource(user),
+        _get_role_binding_resource(user),
+        # Set up Minio
+        _get_minio_deployment(user),
         # Set up pipeline
-        _get_pipeline_data_connection_resource(user_id),
-        #_get_allow_from_all_namespaces_resource(user_id),
-        #_get_allow_from_ingress_namespace_resource(user_id),
-        _get_pipelines_definition_resource(user_id),
+        _get_pipeline_data_connection_resource(user),
+        #_get_allow_from_all_namespaces_resource(user),
+        #_get_allow_from_ingress_namespace_resource(user),
+        _get_pipelines_definition_resource(user),
     ]
     return user_resources
 
 
 
-def _get_project_resource(user_id):
+def _get_project_resource(user):
     project_resource = {
         'kind': 'Project',
         'apiVersion': 'project.openshift.io/v1',
         'metadata': {
-            'name': user_id,
+            'name': user,
             'labels': {
-                'kubernetes.io/metadata.name': user_id,
+                'kubernetes.io/metadata.name': user,
                 'modelmesh-enabled': 'true',
                 'opendatahub.io/dashboard': 'true',
             },
             'annotations': {
                 'openshift.io/description': '',
-                'openshift.io/display-name': user_id,
+                'openshift.io/display-name': user,
             }
         },
         'spec': {
@@ -77,18 +79,18 @@ def _get_project_resource(user_id):
     return project_resource
 
 
-def _get_role_binding_resource(user_id):
+def _get_role_binding_resource(user):
     role_binding_resource = {
         'apiVersion': 'rbac.authorization.k8s.io/v1',
         'kind': 'RoleBinding',
         'metadata': {
             'name': 'admin',
-            'namespace': user_id,
+            'namespace': user,
         },
         'subjects': [{
             'kind': 'User',
             'apiGroup': 'rbac.authorization.k8s.io',
-            'name': user_id,
+            'name': user,
         }],
         'roleRef': {
             'apiGroup': 'rbac.authorization.k8s.io',
@@ -98,15 +100,58 @@ def _get_role_binding_resource(user_id):
     }
     return role_binding_resource
 
+def _get_minio_deployment(user):
+    minio_resource1 = {
+        'apiVersion': 'v1',
+        'kind': 'ServiceAccount',
+        'metadata': {
+            'name': 'demo-setup'
+        }
+    minio_resource2 = {
+        'apiVersion': 'rbac.authorization.k8s.io/v1',
+        'kind': 'RoleBinding',
+        'metadata': {
+        name: demo-setup-edit
+        roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: edit
+        subjects:
+        - kind: ServiceAccount
+            name: demo-setup
+        }
+    minio_resource3 = {
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+        name: create-s3-storage
+        spec:
+        selector: {}
+        template:
+            spec:
+            containers:
+                - args:
+                    - -ec
+                    - |-
+                    echo -n 'Setting up Minio instance and data connections'
+                    oc apply -f https://raw.githubusercontent.com/rh-aiservices-bu/test-drive/main/setup/setup-s3-no-sa.yaml
+                command:
+                    - /bin/bash
+                image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+                imagePullPolicy: IfNotPresent
+                name: create-s3-storage
+            restartPolicy: Never
+            serviceAccount: demo-setup
+            serviceAccountName: demo-setup
+        }
 
-
-def _get_pipeline_data_connection_resource(user_id):
+def _get_pipeline_data_connection_resource(user):
     aws_connection_object_detection_resource = {
         'kind': 'Secret',
         'apiVersion': 'v1',
         'metadata':{
             'name': 'aws-connection-object-detection',
-            'namespace': user_id,
+            'namespace': user,
             'labels':{
                 'opendatahub.io/dashboard': 'true',
                 'opendatahub.io/managed': 'true',
@@ -119,7 +164,7 @@ def _get_pipeline_data_connection_resource(user_id):
         'stringData':{
             'AWS_ACCESS_KEY_ID': 'minio',
             'AWS_DEFAULT_REGION': 'us-east-1',
-            'AWS_S3_BUCKET': user_id,
+            'AWS_S3_BUCKET': user,
             'AWS_S3_ENDPOINT': 'http://minio-service.minio.svc:9000',
             'AWS_SECRET_ACCESS_KEY': 'minio123',
             'type': 'Opaque',
@@ -128,13 +173,13 @@ def _get_pipeline_data_connection_resource(user_id):
     return aws_connection_object_detection_resource
 
 
-def _get_allow_from_all_namespaces_resource(user_id):
+def _get_allow_from_all_namespaces_resource(user):
     allow_from_all_namespaces_resource = {
         'kind': 'NetworkPolicy',
         'apiVersion': 'networking.k8s.io/v1',
         'metadata':{
             'name': 'allow-from-all-namespaces',
-            'namespace': user_id,
+            'namespace': user,
         },
         'spec':{
             'podSelector': {},
@@ -145,13 +190,13 @@ def _get_allow_from_all_namespaces_resource(user_id):
     return allow_from_all_namespaces_resource
 
 
-def _get_allow_from_ingress_namespace_resource(user_id):
+def _get_allow_from_ingress_namespace_resource(user):
     allow_from_ingress_namespace_resource = {
         'kind': 'NetworkPolicy',
         'apiVersion': 'networking.k8s.io/v1',
         'metadata':{
             'name': 'allow-from-ingress-namespace',
-            'namespace': user_id,
+            'namespace': user,
         },
         'spec':{
             'podSelector': {},
@@ -170,14 +215,14 @@ def _get_allow_from_ingress_namespace_resource(user_id):
     return allow_from_ingress_namespace_resource
 
 
-def _get_pipelines_definition_resource(user_id):
+def _get_pipelines_definition_resource(user):
     pipelines_definition_resource = {
         'apiVersion': 'datasciencepipelinesapplications.opendatahub.io/v1alpha1',
         'kind': 'DataSciencePipelinesApplication',
         'metadata':{
             'finalizers':['datasciencepipelinesapplications.opendatahub.io/finalizer'],
             'name': 'pipelines-definition',
-            'namespace': user_id,
+            'namespace': user,
         },
         'spec':{
             'apiServer':{
