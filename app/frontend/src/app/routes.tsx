@@ -82,6 +82,12 @@ const routes: AppRouteConfig[] = [
   },
   {
     component: Empty,
+    label: 'Spacer',
+    path: '#',
+    title: 'Spacer'
+  },
+  {
+    component: Empty,
     label: 'Admin',
     path: '#',
     title: 'Admin'

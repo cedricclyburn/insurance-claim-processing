@@ -11,6 +11,7 @@ import {
 	Nav,
   NavExpandable,
   NavItem,
+	NavItemSeparator,
 	NavList,
 	Page,
 	PageSidebar,
@@ -45,10 +46,14 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const location = useLocation();
 
   const renderNavItem = (route: IAppRoute, index: number) => (
-    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname}>
-      <NavLink exact={route.exact} to={route.path} className={route.path != '#' ? '': 'disabled-link'}>
-        {route.label}
-      </NavLink>
+    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname} className='navitem-flex'>
+      {route.title !== 'Spacer' ? (
+        <NavLink exact={route.exact} to={route.path} className={route.path !== '#' ? '' : 'disabled-link'}>
+          {route.label}
+        </NavLink>
+      ) : (
+        <div className='nav-separator'>&nbsp;</div>
+      )}
     </NavItem>
   );
 

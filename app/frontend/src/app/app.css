@@ -39,3 +39,7 @@ body,
   cursor: default;
   color: grey;
 }
+
+.nav-separator {
+  height: 10vh;
+}
