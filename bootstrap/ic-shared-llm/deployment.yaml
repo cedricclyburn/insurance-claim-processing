@@ -67,7 +67,7 @@ spec:
               type: RuntimeDefault
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: 8000
               protocol: TCP
           imagePullPolicy: IfNotPresent
           startupProbe:
