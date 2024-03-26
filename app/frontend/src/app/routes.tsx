@@ -6,6 +6,7 @@ import { NotFound } from '@app/components/NotFound/NotFound';
 import { useDocumentTitle } from '@app/utils/useDocumentTitle';
 import { ClaimsList } from './components/ClaimsList/ClaimsList';
 import { ClaimDetail } from './components/ClaimDetail/ClaimDetail';
+import { Empty } from './components/Empty/Empty';
 
 
 let routeFocusTimer: number;
@@ -18,28 +19,35 @@ export interface IAppRoute {
   path: string;
   title: string;
   routes?: undefined;
+  bottomRoutes?: undefined;
   disabled?: boolean;
 }
 
 export interface IAppRouteGroup {
   label: string;
   routes: IAppRoute[];
+  bottomRoutes?: IAppRoute[];
 }
 
 export type AppRouteConfig = IAppRoute | IAppRouteGroup;
 
 const routes: AppRouteConfig[] = [
   {
-    component: OriginalApp,
-    exact: true,
-    label: 'Original App',
-    path: '/',
-    title: 'Original App',
+    component: Empty,
+    label: 'Dashboard',
+    path: '#',
+    title: 'Dashboard'
+  },
+  {
+    component: Empty,
+    label: 'Policies',
+    path: '#',
+    title: 'Policies'
   },
   {
     component: ClaimsList,
     exact: true,
-    label: 'New App',
+    label: 'Claims',
     path: '/ClaimsList',
     title: 'Claims List',
   },
@@ -50,10 +58,50 @@ const routes: AppRouteConfig[] = [
     title: 'Claim Detail',
   },
   {
-    component: NewApp,
-    label: 'Test',
+    component: Empty,
+    label: 'Coverages',
     path: '#',
-    title: 'New App'
+    title: 'Coverages'
+  },
+  {
+    component: Empty,
+    label: 'Annuities',
+    path: '#',
+    title: 'Annuities'
+  },
+  {
+    component: Empty,
+    label: 'Subscriptions',
+    path: '#',
+    title: 'Subscriptions'
+  },
+];
+
+const bottomRoutes: AppRouteConfig[] = [
+  {
+    component: Empty,
+    label: 'Reports',
+    path: '#',
+    title: 'Reports'
+  },
+  {
+    component: Empty,
+    label: 'Admin',
+    path: '#',
+    title: 'Admin'
+  },
+  {
+    component: Empty,
+    label: 'Settings',
+    path: '#',
+    title: 'Settings'
+  },
+  {
+    component: OriginalApp,
+    exact: true,
+    label: 'Original App',
+    path: '/',
+    title: 'Original App',
   },
 ];
 
@@ -107,4 +155,4 @@ const AppRoutes = (): React.ReactElement => (
   </Switch>
 );
 
-export { AppRoutes, routes };
+export { AppRoutes, routes, bottomRoutes };

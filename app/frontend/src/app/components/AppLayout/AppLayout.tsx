@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Brand,
   Button,
+  Flex,
   Masthead,
   MastheadBrand,
   MastheadMain,
@@ -16,7 +17,7 @@ import {
   PageSidebarBody,
 	SkipToContent
 } from '@patternfly/react-core';
-import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
+import { IAppRoute, IAppRouteGroup, routes, bottomRoutes } from '@app/routes';
 import logo from '@app/assets/bgimages/Logo-Red_Hat-OpenShift_AI-A-Reverse-RGB.svg';
 import { BarsIcon } from '@patternfly/react-icons';
 
@@ -66,6 +67,12 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     <Nav id="nav-primary-simple" theme="dark">
       <NavList id="nav-list-simple">
         {routes.map(
+          (route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx))
+        )}
+      </NavList>
+      <Flex spacer={{ default: 'spacerXl' }} />
+      <NavList id="nav-list-simple-bottom">
+        {bottomRoutes.map(
           (route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx))
         )}
       </NavList>
