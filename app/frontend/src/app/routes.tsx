@@ -26,7 +26,6 @@ export interface IAppRoute {
 export interface IAppRouteGroup {
   label: string;
   routes: IAppRoute[];
-  bottomRoutes?: IAppRoute[];
 }
 
 export type AppRouteConfig = IAppRoute | IAppRouteGroup;
@@ -75,9 +74,6 @@ const routes: AppRouteConfig[] = [
     path: '#',
     title: 'Subscriptions'
   },
-];
-
-const bottomRoutes: AppRouteConfig[] = [
   {
     component: Empty,
     label: 'Reports',
@@ -155,4 +151,4 @@ const AppRoutes = (): React.ReactElement => (
   </Switch>
 );
 
-export { AppRoutes, routes, bottomRoutes };
+export { AppRoutes, routes };

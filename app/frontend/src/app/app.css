@@ -35,6 +35,7 @@ body,
   height: 100%;
 }
 
-.default-cursor {
+.disabled-link {
   cursor: default;
+  color: grey;
 }
