@@ -35,36 +35,38 @@ def generate_manifest(user_count, output_file_path):
 def _get_overall_resources(user_count):
     overall_resources = []
     for index in range(1, user_count+1):
-        overall_resources += _get_user_resources(f'user{index}')
+        overall_resources += _get_user_resources(f'user{index}-auto', f'user{index}')
     return overall_resources
 
 
-def _get_user_resources(user):
+def _get_user_resources(namespace, user):
     user_resources = [
         # Set up project
-        _get_project_resource(user),
-        _get_role_binding_resource(user),
+        _get_project_resource(namespace, user),
+        _get_role_binding_resource(namespace, user),
         # Set up minio and data connections
-        _get_minio_resource(user),
+        _get_minio_resource(namespace, user),
         # Set up pipeline
-        _get_pipelines_definition_resource(user),
+        _get_pipelines_definition_resource(namespace, user),
+        # Set up workbench
+        _get_workbench_resource(namespace, user),
     ]
     return user_resources
 
 
-def _get_minio_resource(user):
+def _get_minio_resource(namespace, user):
     resource = """---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: demo-setup
-  namespace: {user}
+  namespace: {namespace}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: demo-setup-edit
-  namespace: {user}
+  namespace: {namespace}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -84,7 +86,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: minio
-  namespace: {user}
+  namespace: {namespace}
 spec:
   ports:
   - name: api
@@ -114,7 +116,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: minio
-  namespace: {user}
+  namespace: {namespace}
 spec:
   accessModes:
   - ReadWriteOnce
@@ -133,7 +135,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: minio
-  namespace: {user}
+  namespace: {namespace}
 spec:
   replicas: 1
   selector:
@@ -195,7 +197,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: create-ds-connections
-  namespace: {user}
+  namespace: {namespace}
 spec:
   selector: {}
   template:
@@ -220,26 +222,6 @@ spec:
           MINIO_ROOT_PASSWORD=$(oc get secret minio-root-user -o template --template '{{.data.MINIO_ROOT_PASSWORD}}')
           MINIO_HOST=https://$(oc get route minio-s3 -o template --template '{{.spec.host}}')
 
-          cat << EOF | oc apply -f-
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            annotations:
-              opendatahub.io/connection-type: s3
-              openshift.io/display-name: My Storage
-            labels:
-              opendatahub.io/dashboard: "true"
-              opendatahub.io/managed: "true"
-            name: aws-connection-my-storage
-          data:
-            AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-            AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-          stringData:
-            AWS_DEFAULT_REGION: us-east-1
-            AWS_S3_BUCKET: my-storage
-            AWS_S3_ENDPOINT: ${MINIO_HOST}
-          type: Opaque
-          EOF
           cat << EOF | oc apply -f-
           apiVersion: v1
           kind: Secret
@@ -279,7 +261,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: create-minio-buckets
-  namespace: {user}
+  namespace: {namespace}
 spec:
   selector: {}
   template:
@@ -309,14 +291,6 @@ spec:
           print('creating pipeline-artifacts bucket')
           if bucket not in [bu["Name"] for bu in s3.list_buckets()["Buckets"]]:
             s3.create_bucket(Bucket=bucket)
-          bucket = 'my-storage'
-          print('creating my-storage bucket')
-          if bucket not in [bu["Name"] for bu in s3.list_buckets()["Buckets"]]:
-            s3.create_bucket(Bucket=bucket)
-          # filename = "card.fraud.detection.onnx"
-          # print('Uploading a model file to it')
-          # with open(filename, "rb") as f:
-          #   s3.upload_fileobj(f, bucket, f'modelv01/{filename}')
           EOF
         command:
         - /bin/bash
@@ -362,7 +336,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: create-minio-root-user
-  namespace: {user}
+  namespace: {namespace}
 spec:
   backoffLimit: 4
   template:
@@ -417,7 +391,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: minio-console
-  namespace: {user}
+  namespace: {namespace}
 spec:
   port:
     targetPort: console
@@ -441,7 +415,7 @@ metadata:
     app.kubernetes.io/part-of: minio
     component: minio
   name: minio-s3
-  namespace: {user}
+  namespace: {namespace}
 spec:
   port:
     targetPort: api
@@ -453,24 +427,24 @@ spec:
     name: minio
     weight: 100
   wildcardPolicy: None
-""".replace("{user}", user)
+""".replace("{user}", user).replace("{namespace}", namespace)
     return resource
 
 
-def _get_project_resource(user):
+def _get_project_resource(namespace, user):
     project_resource = {
         'kind': 'Project',
         'apiVersion': 'project.openshift.io/v1',
         'metadata': {
-            'name': user,
+            'name': namespace,
             'labels': {
-                'kubernetes.io/metadata.name': user,
+                'kubernetes.io/metadata.name': namespace,
                 'modelmesh-enabled': 'true',
                 'opendatahub.io/dashboard': 'true',
             },
             'annotations': {
                 'openshift.io/description': '',
-                'openshift.io/display-name': user,
+                'openshift.io/display-name': namespace,
             }
         },
         'spec': {
@@ -480,13 +454,13 @@ def _get_project_resource(user):
     return project_resource
 
 
-def _get_role_binding_resource(user):
+def _get_role_binding_resource(namespace, user):
     role_binding_resource = {
         'apiVersion': 'rbac.authorization.k8s.io/v1',
         'kind': 'RoleBinding',
         'metadata': {
             'name': 'admin',
-            'namespace': user,
+            'namespace': namespace,
         },
         'subjects': [{
             'kind': 'User',
@@ -502,14 +476,14 @@ def _get_role_binding_resource(user):
     return role_binding_resource
 
 
-def _get_pipelines_definition_resource(user):
+def _get_pipelines_definition_resource(namespace, user):
     pipelines_definition_resource = {
         'apiVersion': 'datasciencepipelinesapplications.opendatahub.io/v1alpha1',
         'kind': 'DataSciencePipelinesApplication',
         'metadata':{
             'finalizers':['datasciencepipelinesapplications.opendatahub.io/finalizer'],
             'name': 'pipelines-definition',
-            'namespace': user,
+            'namespace': namespace,
         },
         'spec':{
             'apiServer':{
@@ -537,7 +511,7 @@ def _get_pipelines_definition_resource(user):
             'objectStorage':{
                 'externalStorage':{
                     'bucket': 'pipeline-artifacts',
-                    'host': f'minio.{user}.svc.cluster.local:9000',
+                    'host': f'minio.{namespace}.svc.cluster.local:9000',
                     'port': '',
                     's3CredentialsSecret':{
                         'accessKey': 'AWS_ACCESS_KEY_ID',
@@ -559,6 +533,9 @@ def _get_pipelines_definition_resource(user):
         }
     }
     return pipelines_definition_resource
+
+def _get_workbench_resource(user):
+    pass
 
 if __name__ == '__main__':
     main()
