@@ -534,8 +534,193 @@ def _get_pipelines_definition_resource(namespace, user):
     }
     return pipelines_definition_resource
 
-def _get_workbench_resource(user):
-    pass
+def _get_workbench_resource(namespace, user):
+    notebook_name = "my-workbench"
+    cluster = "cluster-2lfsp.sandbox1231.opentlc.com"
+    image = "ic-workbench:1.2"
+    workbench = """apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  annotations:
+    notebooks.opendatahub.io/inject-oauth: 'true'
+    opendatahub.io/image-display-name: CUSTOM - Insurance Claim Processing Lab Workbench
+    notebooks.opendatahub.io/oauth-logout-url: >-
+      https://rhods-dashboard-redhat-ods-applications.apps.{cluster}/projects/user1?notebookLogout={notebook_name}
+    opendatahub.io/accelerator-name: ''
+    openshift.io/description: ''
+    openshift.io/display-name: My Workbench
+    notebooks.opendatahub.io/last-image-selection: '{image}'
+    notebooks.opendatahub.io/last-size-selection: Standard
+    opendatahub.io/username: {user}
+  name: {notebook_name}
+  namespace: {namespace}
+  labels:
+    app: {notebook_name}
+    opendatahub.io/dashboard: 'true'
+    opendatahub.io/odh-managed: 'true'
+    opendatahub.io/user: {user}
+spec:
+  template:
+    spec:
+      affinity: {}
+      containers:
+        - resources:
+            limits:
+              cpu: '2'
+              memory: 8Gi
+            requests:
+              cpu: '1'
+              memory: 6Gi
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /notebook/{namespace}/{notebook_name}/api
+              port: notebook-port
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: {notebook_name}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /notebook/{namespace}/{notebook_name}/api
+              port: notebook-port
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          env:
+            - name: NOTEBOOK_ARGS
+              value: |-
+                --ServerApp.port=8888
+                                  --ServerApp.token=''
+                                  --ServerApp.password=''
+                                  --ServerApp.base_url=/notebook/{namespace}/{notebook_name}
+                                  --ServerApp.quit_button=False
+                                  --ServerApp.tornado_settings={"user":"{user}","hub_host":"https://rhods-dashboard-redhat-ods-applications.apps.{cluster}","hub_prefix":"/projects/{namespace}"}
+            - name: JUPYTER_IMAGE
+              value: >-
+                image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/{image}
+          ports:
+            - containerPort: 8888
+              name: notebook-port
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /opt/app-root/src
+              name: {notebook_name}
+            - mountPath: /opt/app-root/runtimes
+              name: elyra-dsp-details
+            - mountPath: /dev/shm
+              name: shm
+            - mountPath: /etc/pki/tls/certs/custom-ca-bundle.crt
+              name: trusted-ca
+              readOnly: true
+              subPath: custom-ca-bundle.crt
+          image: >-
+            image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/{image}
+          workingDir: /opt/app-root/src
+        - resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /oauth/healthz
+              port: oauth-proxy
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: oauth-proxy
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /oauth/healthz
+              port: oauth-proxy
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 8443
+              name: oauth-proxy
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /etc/oauth/config
+              name: oauth-config
+            - mountPath: /etc/tls/private
+              name: tls-certificates
+          image: >-
+            registry.redhat.io/openshift4/ose-oauth-proxy@sha256:4bef31eb993feb6f1096b51b4876c65a6fb1f4401fee97fa4f4542b6b7c9bc46
+          args:
+            - '--provider=openshift'
+            - '--https-address=:8443'
+            - '--http-address='
+            - '--openshift-service-account={notebook_name}'
+            - '--cookie-secret-file=/etc/oauth/config/cookie_secret'
+            - '--cookie-expire=24h0m0s'
+            - '--tls-cert=/etc/tls/private/tls.crt'
+            - '--tls-key=/etc/tls/private/tls.key'
+            - '--upstream=http://localhost:8888'
+            - '--upstream-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+            - '--email-domain=*'
+            - '--skip-provider-button'
+            - >-
+              --openshift-sar={"verb":"get","resource":"notebooks","resourceAPIGroup":"kubeflow.org","resourceName":"{notebook_name}","namespace":"$(NAMESPACE)"}
+            - >-
+              --logout-url=https://rhods-dashboard-redhat-ods-applications.apps.{cluster}/projects/{namespace}?notebookLogout={notebook_name}
+      enableServiceLinks: false
+      serviceAccountName: {notebook_name}
+      tolerations:
+        - effect: NoSchedule
+          key: notebooksonly
+          operator: Exists
+      volumes:
+        - name: {notebook_name}
+          persistentVolumeClaim:
+            claimName: {notebook_name}
+        - name: elyra-dsp-details
+          secret:
+            secretName: ds-pipeline-config
+        - emptyDir:
+            medium: Memory
+          name: shm
+        - configMap:
+            items:
+              - key: ca-bundle.crt
+                path: custom-ca-bundle.crt
+              - key: odh-ca-bundle.crt
+                path: custom-odh-ca-bundle.crt
+            name: odh-trusted-ca-bundle
+            optional: true
+          name: trusted-ca
+        - name: oauth-config
+          secret:
+            defaultMode: 420
+            secretName: {notebook_name}-oauth-config
+        - name: tls-certificates
+          secret:
+            defaultMode: 420
+            secretName: {notebook_name}-tls
+  readyReplicas: 1
+""".replace("{notebook_name}", notebook_name).replace("{user}", user).replace("{namespace}", namespace).replace("{cluster}", cluster).replace("{image}", image)
+    return workbench
 
 if __name__ == '__main__':
     main()
