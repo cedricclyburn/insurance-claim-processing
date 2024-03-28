@@ -49,7 +49,9 @@ def _get_user_resources(namespace, user):
         # Set up pipeline
         _get_pipelines_definition_resource(namespace, user),
         # Set up workbench
+        _get_workbench_pvc_resource(namespace, user),
         _get_workbench_resource(namespace, user),
+        _get_git_clone_job(namespace, user),
     ]
     return user_resources
 
@@ -534,6 +536,33 @@ def _get_pipelines_definition_resource(namespace, user):
     }
     return pipelines_definition_resource
 
+def _get_workbench_pvc_resource(namespace, user):
+    notebook_name = "my-workbench"
+    pvc = """kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  annotations:
+    openshift.io/description: ''
+    openshift.io/display-name: My Workbench
+    volume.beta.kubernetes.io/storage-provisioner: openshift-storage.rbd.csi.ceph.com
+    volume.kubernetes.io/storage-provisioner: openshift-storage.rbd.csi.ceph.com
+  name: {notebook_name}
+  namespace: {namespace}
+  finalizers:
+    - kubernetes.io/pvc-protection
+  labels:
+    opendatahub.io/dashboard: 'true'
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ocs-storagecluster-ceph-rbd
+  volumeMode: Filesystem
+""".replace("{notebook_name}", notebook_name).replace("{namespace}", namespace)
+    return pvc
+
 def _get_workbench_resource(namespace, user):
     notebook_name = "my-workbench"
     cluster = "cluster-2lfsp.sandbox1231.opentlc.com"
@@ -545,7 +574,7 @@ metadata:
     notebooks.opendatahub.io/inject-oauth: 'true'
     opendatahub.io/image-display-name: CUSTOM - Insurance Claim Processing Lab Workbench
     notebooks.opendatahub.io/oauth-logout-url: >-
-      https://rhods-dashboard-redhat-ods-applications.apps.{cluster}/projects/user1?notebookLogout={notebook_name}
+      https://rhods-dashboard-redhat-ods-applications.apps.{cluster}/projects/{namespace}?notebookLogout={notebook_name}
     opendatahub.io/accelerator-name: ''
     openshift.io/description: ''
     openshift.io/display-name: My Workbench
@@ -616,10 +645,6 @@ spec:
               name: elyra-dsp-details
             - mountPath: /dev/shm
               name: shm
-            - mountPath: /etc/pki/tls/certs/custom-ca-bundle.crt
-              name: trusted-ca
-              readOnly: true
-              subPath: custom-ca-bundle.crt
           image: >-
             image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/{image}
           workingDir: /opt/app-root/src
@@ -701,15 +726,6 @@ spec:
         - emptyDir:
             medium: Memory
           name: shm
-        - configMap:
-            items:
-              - key: ca-bundle.crt
-                path: custom-ca-bundle.crt
-              - key: odh-ca-bundle.crt
-                path: custom-odh-ca-bundle.crt
-            name: odh-trusted-ca-bundle
-            optional: true
-          name: trusted-ca
         - name: oauth-config
           secret:
             defaultMode: 420
@@ -721,6 +737,45 @@ spec:
   readyReplicas: 1
 """.replace("{notebook_name}", notebook_name).replace("{user}", user).replace("{namespace}", namespace).replace("{cluster}", cluster).replace("{image}", image)
     return workbench
+
+def _get_git_clone_job(namespace, user):
+    notebook_name = "my-workbench"
+    clone_job = """apiVersion: batch/v1
+kind: Job
+metadata:
+  name: clone-repo
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      serviceAccount: demo-setup
+      serviceAccountName: demo-setup
+      initContainers:
+      - name: wait-for-workbench
+        image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash"]
+        args:
+        - -ec
+        - |-
+          echo -n "Waiting for workbench pod in {namespace} namespace"
+          while [ -z "$(oc get pod -n {namespace} -l app={notebook_name} -o name 2>/dev/null)" ]; do
+              echo -n '.'
+              sleep 1
+          done
+          echo "Workbench pod is running in {namespace} namespace"
+      containers:
+      - name: git-clone
+        image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-generic-data-science-notebook:1.2
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash"]
+        args:
+        - -ec
+        - |-
+          pod_name=$(oc get pods --selector=app={notebook_name} -o jsonpath='{.items[0].metadata.name}') && oc exec $pod_name -- git clone https://github.com/rh-aiservices-bu/insurance-claim-processing
+      restartPolicy: Never
+""".replace("{namespace}", namespace).replace("{notebook_name}", notebook_name)
+    return clone_job
 
 if __name__ == '__main__':
     main()
