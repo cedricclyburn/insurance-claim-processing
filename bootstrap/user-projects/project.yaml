@@ -1,0 +1,30 @@
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  annotations:
+    openshift.io/description: ''
+    openshift.io/display-name: user1-auto
+  labels:
+    kubernetes.io/metadata.name: user1-auto
+    modelmesh-enabled: 'true'
+    opendatahub.io/dashboard: 'true'
+  name: user1-auto
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  annotations:
+    openshift.io/description: ''
+    openshift.io/display-name: user2-auto
+  labels:
+    kubernetes.io/metadata.name: user2-auto
+    modelmesh-enabled: 'true'
+    opendatahub.io/dashboard: 'true'
+  name: user2-auto
+spec:
+  finalizers:
+  - kubernetes
+---

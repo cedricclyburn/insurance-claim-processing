@@ -1,59 +1,46 @@
 import yaml
 from argparse import ArgumentParser
 
-
 def main():
     arguments = _read_arguments()
     user_count = arguments.user_count
-    output_file_path = arguments.output_file_path
-    generate_manifest(user_count, output_file_path)
+    generate_resource_manifest(user_count)
 
 
 def _read_arguments():
     parser = ArgumentParser()
     parser.add_argument('--user_count', type=int)
-    parser.add_argument('--output_file_path', default='user_manifests.yaml')
     arguments = parser.parse_args()
     return arguments
 
+def get_resource_functions():
+    return {
+        "project": _get_project_resource,
+        "project_role_binding": _get_role_binding_resource,
+        "minio": _get_minio_resource,
+        "pipeline": _get_pipelines_definition_resource,
+        "workbench_pvc": _get_workbench_pvc_resource,
+        "workbench": _get_workbench_resource,
+        "git_clone_job": _get_git_clone_job
+    }
 
-def generate_manifest(user_count, output_file_path):
-    resources = _get_overall_resources(user_count)
-
-    manifests = [
-        yaml.dump(resource) if type(resource) is dict else resource for resource in resources 
-    ]
-    overall_manifest = ''
-    for manifest in manifests:
-        overall_manifest += manifest
-        overall_manifest += '---\n'
-    with open(output_file_path, 'w') as outputfile:
-        outputfile.write(overall_manifest)
-    print(f'Wrote manifest {output_file_path}')
-
-
-def _get_overall_resources(user_count):
-    overall_resources = []
-    for index in range(1, user_count+1):
-        overall_resources += _get_user_resources(f'user{index}-auto', f'user{index}')
-    return overall_resources
-
-
-def _get_user_resources(namespace, user):
-    user_resources = [
-        # Set up project
-        _get_project_resource(namespace, user),
-        _get_role_binding_resource(namespace, user),
-        # Set up minio and data connections
-        _get_minio_resource(namespace, user),
-        # Set up pipeline
-        _get_pipelines_definition_resource(namespace, user),
-        # Set up workbench
-        _get_workbench_pvc_resource(namespace, user),
-        _get_workbench_resource(namespace, user),
-        _get_git_clone_job(namespace, user),
-    ]
-    return user_resources
+def generate_resource_manifest(user_count):
+    resources = get_resource_functions()
+    for resource_name, func in resources.items():
+      sum_user_res = []
+      for index in range(1, user_count+1):
+          sum_user_res.append(func(f'user{index}-auto', f'user{index}'))
+      
+      manifests = [
+          yaml.dump(resource) if type(resource) is dict else resource for resource in sum_user_res 
+      ]
+      overall_manifest = ''
+      for manifest in manifests:
+          overall_manifest += manifest
+          overall_manifest += '---\n'
+      with open(f"{resource_name}.yaml", 'w') as outputfile:
+          outputfile.write(overall_manifest)
+      print(f'Wrote manifest {resource_name}')
 
 
 def _get_minio_resource(namespace, user):
