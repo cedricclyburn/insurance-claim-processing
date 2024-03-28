@@ -735,6 +735,21 @@ spec:
             defaultMode: 420
             secretName: {notebook_name}-tls
   readyReplicas: 1
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: elyra-pipelines-{notebook_name}
+  namespace: {namespace}
+  labels:
+    opendatahub.io/dashboard: 'true'
+subjects:
+  - kind: ServiceAccount
+    name: {notebook_name}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ds-pipeline-user-access-pipelines-definition
 """.replace("{notebook_name}", notebook_name).replace("{user}", user).replace("{namespace}", namespace).replace("{cluster}", cluster).replace("{image}", image)
     return workbench
 
