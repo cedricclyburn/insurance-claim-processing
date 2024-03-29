@@ -90,7 +90,7 @@ image::05/05-PVC-settings.png[PVC settings]
 
 == Run the pipeline
 
-* Start by downloading the `process_claims.yaml` file locally to your laptop
+* Start by downloading the `https://raw.githubusercontent.com/rh-aiservices-bu/insurance-claim-processing/main/lab-materials/05/05-05/process_claims.yaml[process_claims.yaml]` file locally to your laptop
 ** In your VSCode Workbench, right click on the file, and select **Download**
 ** Save the file somewhere on your laptop
 * Then go to the Red Hat OpenShift Data Science dashboard
